@@ -1,0 +1,41 @@
+- source:
+    fieldPath: spec.template.spec.containers.[label=main].image
+    kind: Deployment
+    options:
+      delimiter: ':'
+      index: 1
+  targets:
+    - fieldPaths:
+        - spec.template.spec.containers.[name=apollo-graphql-schema-check].env.[name=FROM_VARIANT].value
+      select:
+        kind: Job
+        labels.process-type: apollo-studio
+- source:
+    fieldPath: metadata.name
+    kind: Deployment
+  targets:
+    - fieldPaths:
+        - spec.template.spec.containers.[name=apollo-graphql-schema-check].env.[name=NAME].value
+      select:
+        kind: Job
+        labels.process-type: apollo-studio
+- source:
+    fieldPath: metadata.labels.environment
+    kind: Deployment
+  targets:
+    - fieldPaths:
+        - spec.template.spec.containers.[name=apollo-graphql-schema-check].env.[name=TO_ENV].value
+      select:
+        kind: Job
+        labels.process-type: apollo-studio
+- source:
+    fieldPath: metadata.labels.graph-url
+    kind: Service
+  targets:
+    - fieldPaths:
+        - spec.template.spec.containers.[name=apollo-graphql-schema-check].env.[name=URL].value
+      select:
+        kind: Job
+        name: fgql-service-post-sync
+        labels.process-type: apollo-studio
+

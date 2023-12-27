@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    reloader.stakater.com/search: "true"
+  labels:
+    environment: qa
+  name: tps
+  namespace: demo
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: tps
+      environment: qa
+  template:
+    metadata:
+      annotations:
+        reloader.stakater.com/auto: "true"
+      labels:
+        app: tps
+        environment: qa
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: tps-configmap
+            - secretRef:
+                name: tps-secrets-fetch
+          image: gcr.io/come-play-with-us/tps-service:0.0.2
+          imagePullPolicy: Always
+          label: main
+          livenessProbe:
+            httpGet:
+              path: /application/health/liveness
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 15
+          name: tps
+          ports:
+            - containerPort: 8080
+              name: api
+            - containerPort: 9090
+              name: management
+          readinessProbe:
+            httpGet:
+              path: /application/health/readiness
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 5.5Gi
+            requests:
+              cpu: 2000m
+              memory: 5.5Gi
+        - command:
+            - /cloud-sql-proxy
+            - --private-ip
+            - ${PROJECT_NAME}:us-east1:${DB_INSTANCE_NAME}?port=3306
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.7.0
+          name: cloud-sql-proxy
+          resources:
+            limits:
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+          securityContext:
+            runAsNonRoot: true
+      serviceAccountName: tps-sa
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  labels:
+    environment: qa
+    process-type: apollo-studio
+  name: before
+  namespace: demo
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        environment: qa
+    spec:
+      containers:
+        - env:
+            - name: DEPLOY_ARTIFACT
+              value: "1"
+            - name: FROM_APOLLO_KEY
+              value: service:qmp-artifact-registry:UCB8f8V8maw2Q-Up0yoILA
+            - name: TO_APOLLO_KEY
+              value: service:qa-qmp-federated-schema:DM-Wpm-DG_s9qSND6z3MUA
+            - name: TO_ENV
+              value: qa
+            - name: FROM_VARIANT
+              value: 0.0.2
+            - name: TO_VARIANT
+              value: test
+            - name: NAME
+              value: tps
+            - name: URL
+              value: http://demo.demo-service.svc.cluster.local:8080/graphql
+          image: us-east1-docker.pkg.dev/dev-qmedia/boris-dev/media-proto-federated-graphql-env:0.0.1
+          name: apollo-graphql-schema-check
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  labels:
+    environment: qa
+    process-type: apollo-studio
+  name: fgql-service-pre-sync
+  namespace: demo
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        environment: qa
+    spec:
+      containers:
+        - env:
+            - name: CHECK_ARTIFACT
+              value: "1"
+            - name: FROM_APOLLO_KEY
+              value: service:qmp-artifact-registry:UCB8f8V8maw2Q-Up0yoILA
+            - name: TO_APOLLO_KEY
+              value: service:qa-qmp-federated-schema:DM-Wpm-DG_s9qSND6z3MUA
+            - name: TO_ENV
+              value: qa
+            - name: FROM_VARIANT
+              value: 0.0.2
+            - name: TO_VARIANT
+              value: current
+            - name: NAME
+              value: tps
+          image: us-east1-docker.pkg.dev/dev-qmedia/boris-dev/media-proto-federated-graphql-env:0.0.1
+          name: apollo-graphql-schema-check
+      restartPolicy: Never

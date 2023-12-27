@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-service
+spec:
+  selector:
+    matchLabels:
+      app: demo-service
+  revisionHistoryLimit: 3
+  template:
+    metadata:
+      labels:
+        app: demo-service
+    spec:
+      containers:
+        - name: demo-service
+          label: main
+          image: us-east1-docker.pkg.dev/dev-qmedia/boris-dev/demo-fgql-service:x.x.x
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: api
+

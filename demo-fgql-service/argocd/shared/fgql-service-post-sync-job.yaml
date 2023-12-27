@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fgql-service-post-sync
+  labels:
+    process-type: apollo-studio
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: apollo-graphql-schema-check
+          image:  us-east1-docker.pkg.dev/dev-qmedia/boris-dev/media-proto-federated-graphql-env:0.0.1
+          env:
+            - name: DEPLOY_ARTIFACT
+              value: "1"
+            - name: FROM_APOLLO_KEY
+              value: "service:qmp-artifact-registry:UCB8f8V8maw2Q-Up0yoILA"
+            - name: TO_APOLLO_KEY
+              value: "service:qa-qmp-federated-schema:DM-Wpm-DG_s9qSND6z3MUA"
+            - name: TO_ENV
+              value: xxx
+            - name: FROM_VARIANT
+              value: x.x.x
+            - name: TO_VARIANT
+              value: "test"
+            - name: NAME
+              value: xxx
+            - name: URL
+              value: xxx
+      restartPolicy: Never
+  backoffLimit: 0
+
+
+
+
+  #        -e FROM_ENV=qa -e TO_ENV=qa\
+  #        -e FROM_VARIANT=current -e TO_VARIANT=${_IMAGE_TAG}\
+  #        -e NAME=$_ARTIFACT_NAME \
+  #        -e URL=$_SERVICE_URL \
+  #        -e PUBLISH_PROD=1 \
+  #        $_FGQL_IMAGE
